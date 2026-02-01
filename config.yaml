@@ -1,0 +1,105 @@
+app:
+  name: "Markets News Brief"
+  brand_name: "Smart Invest"
+  log_level: "INFO"
+
+coverage:
+  us: 0.7
+  eu: 0.2
+  china: 0.1
+
+watchlist:
+  tickers:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - TSLA
+    - NVDA
+    - META
+    - SPY
+    - QQQ
+    - BTC
+
+# Model configuration with token caps
+models:
+  retrieval: "sonar"
+  extraction: "gpt-4o"
+  composition: "gpt-4o"
+  # Token caps to control costs and output length
+  extraction_max_tokens: 3000
+  composition_max_tokens: 2048
+  weekly_composition_max_tokens: 3000
+  # Use strict JSON schema for extraction (more reliable)
+  use_strict_schema: true
+
+# Daily retrieval configuration
+daily:
+  max_candidates: 50        # Total candidates to retrieve
+  max_candidates_per_query: 8  # Target per query
+  snippet_words: 80         # Truncate snippets to this word count
+  max_clusters: 14          # Max fact cards to extract
+  # Regional minimums - ensures enough coverage from each region
+  min_us_items: 25          # Minimum US items to retrieve
+  min_eu_items: 8           # Minimum EU items
+  min_china_items: 4        # Minimum China items
+  # Watchlist settings
+  min_watchlist_tickers_covered: 5  # Run fallback query if fewer tickers covered
+  max_items_per_ticker: 2   # Max news items per watchlist ticker
+
+# Ranking configuration
+ranking:
+  # Sentiment boost: extreme sentiment = more newsworthy
+  use_sentiment_boost: true
+  sentiment_boost_range:
+    min: 0.95               # Penalty for very neutral (less newsworthy)
+    max: 1.15               # Boost for strong sentiment (more newsworthy)
+  # Coverage constraints for Top 5
+  require_us_in_top5: true      # At least 1 US macro/policy item
+  require_eu_in_top5: true      # At least 1 EU item if available
+  require_china_in_top5: true   # At least 1 China item or add "no China" note
+  # Filtering
+  deprioritize_analyst_targets: true  # Prevent analyst price targets from dominating Top 5
+  analyst_target_keywords:
+    - "price target"
+    - "analyst rating"
+    - "upgraded"
+    - "downgraded"
+    - "initiated coverage"
+
+# Market data configuration
+market_data:
+  # Use real market data for snapshot (requires yfinance)
+  use_real_data: true
+  # Assets to include in snapshot
+  snapshot_assets:
+    - "S&P 500"
+    - "Nasdaq"
+    - "Stoxx 600"
+    - "US 10Y Yield"
+    - "EUR/USD"
+    - "USD/JPY"
+    - "Brent Oil"
+    - "VIX"
+    - "Bitcoin"
+
+# Retrieval quality controls
+retrieval:
+  # Domain allowlist for filtering low-quality sources (optional)
+  # Leave empty [] to allow all domains
+  allowed_domains: []
+  # Example restricted list:
+  # allowed_domains:
+  #   - reuters.com
+  #   - bloomberg.com
+  #   - wsj.com
+  #   - ft.com
+  #   - cnbc.com
+  #   - marketwatch.com
+
+email:
+  sender: "noreply@yourdomain.com"
+  subject_prefix: "[Markets Brief]"
+  weekly_subject_prefix: "[Weekly Recap]"
+  # Chart embedding method: "base64" (inline) or "cid" (attachment, more reliable)
+  chart_embed_method: "cid"

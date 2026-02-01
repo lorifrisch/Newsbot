@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>Weekly Markets Recap: {{date_range}}</title>
+    <style>
+      @media (max-width: 620px) {
+        .container { width: 100% !important; border-radius: 0 !important; }
+        .px { padding-left: 16px !important; padding-right: 16px !important; }
+        .h1 { font-size: 22px !important; line-height: 28px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f4f6; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; -webkit-font-smoothing: antialiased;">
+    <div style="display:none!important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; max-height:0; max-width:0; overflow:hidden; mso-hide:all;">
+      Your weekly markets recap: key developments and outlook&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td align="center" style="padding: 20px 0;">
+          <table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff; border: 1px solid #e5e7eb; border-radius:12px;">
+            <!-- Header -->
+            <tr>
+              <td class="px" style="padding: 32px 40px; background-color:#111827; color:#ffffff;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px; opacity:0.8; font-weight: 700;">
+                   Smart INVEST • WEEKLY RECAP
+                </div>
+                <h1 class="h1" style="margin:0; font-size:28px; line-height:34px; font-weight:800; letter-spacing:-0.03em;">
+                  Markets Recap: {{date_range}}
+                </h1>
+                <div style="margin-top:16px; font-size:13px; opacity:0.75; font-weight: 400;">
+                  10–15 min read • Weekly Analysis • Generated at {{generated_time}}
+                </div>
+              </td>
+            </tr>
+            
+            <!-- Theme of the Week -->
+            <tr>
+              <td class="px" style="padding: 32px 40px 16px 40px;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px; color:#6b7280; font-weight:700;">
+                  🎯 THEME OF THE WEEK
+                </div>
+                <div style="font-size:16px; line-height:1.6; color:#374151; font-weight: 400; border-left: 4px solid #3b82f6; padding-left: 20px; font-style: italic;">
+                  {{theme_html|safe}}
+                </div>
+              </td>
+            </tr>
+
+            <!-- Top 10 Developments -->
+            <tr>
+              <td class="px" style="padding: 24px 40px;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:16px; color:#6b7280; font-weight:700;">
+                  📊 TOP 10 DEVELOPMENTS
+                </div>
+                <div style="font-size:15px; line-height:1.6; color:#374151;">
+                  {{top_developments_html|safe}}
+                </div>
+              </td>
+            </tr>
+
+            <!-- Next Week to Watch -->
+            <tr>
+              <td class="px" style="padding: 24px 40px;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:16px; color:#6b7280; font-weight:700;">
+                  🔮 NEXT WEEK TO WATCH
+                </div>
+                <div style="font-size:15px; line-height:1.6; color:#374151;">
+                  {{next_week_html|safe}}
+                </div>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td class="px" style="padding: 24px 40px; background-color:#f9fafb; border-top: 1px solid #e5e7eb;">
+                <div style="font-size:12px; color:#6b7280; line-height:1.5; text-align: center;">
+                  <strong style="color:#111827; font-weight: 600;">Smart INVEST Weekly Recap</strong><br>
+                  Automated analysis powered by AI • For informational purposes only<br>
+                  Not investment advice • Generated from verified news sources
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

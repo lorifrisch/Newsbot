@@ -1,0 +1,20 @@
+openai>=1.0.0
+sendgrid
+pyyaml
+python-dotenv
+pytest
+dataset
+jinja2
+pydantic
+pydantic-settings
+markdown2
+
+# Sentiment Analysis (VADER - free, local, no API costs)
+nltk>=3.8
+
+# Chart Generation (sparklines - free, local)
+matplotlib>=3.7
+numpy>=1.24
+
+# Market Data (real-time prices - free API)
+yfinance>=0.2.0
