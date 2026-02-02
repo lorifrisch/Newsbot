@@ -1,0 +1,83 @@
+name: Daily Brief
+
+on:
+  schedule:
+    - cron: "30 6 * * 1-5"   # 06:30 UTC Mon–Fri (07:30 CET / 08:30 CEST)
+  workflow_dispatch: {}
+
+concurrency:
+  group: daily-brief
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run daily brief
+        id: workflow
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python run_daily.py
+
+      - name: Create Execution Summary
+        if: always()
+        run: |
+          LATEST_DIR=$(ls -td data/logs/*/ 2>/dev/null | head -1)
+          if [ -n "$LATEST_DIR" ] && [ -f "${LATEST_DIR}metrics.json" ]; then
+            echo "### 📊 Pipeline Quality Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          try:
+              with open('${LATEST_DIR}metrics.json') as f:
+                  m = json.load(f)
+                  print('| Phase | Metric | Value |')
+                  print('| :--- | :--- | :--- |')
+                  print(f'| **Retrieval** | Total Found | {m.get(\"retrieval\", {}).get(\"total_items\", 0)} |')
+                  print(f'| | Regional (US/EU/China) | {m.get(\"retrieval\", {}).get(\"by_region\", {})} |')
+                  print(f'| **Extraction** | Fact Cards Extracted | {m.get(\"extraction\", {}).get(\"fact_cards_extracted\", 0)} |')
+                  print(f'| **Selection** | Top 5 Count | {m.get(\"ranking\", {}).get(\"top5_selected\", 0)} |')
+                  print(f'| | Top 5 US/EU/CN | {m.get(\"ranking\", {}).get(\"top5_us_count\", 0)} / {m.get(\"ranking\", {}).get(\"top5_eu_count\", 0)} / {m.get(\"ranking\", {}).get(\"top5_china_count\", 0)} |')
+                  print(f'| **Watchlist** | Coverage | {m.get(\"watchlist\", {}).get(\"tickers_with_news\", 0)} / {m.get(\"watchlist\", {}).get(\"total_tickers_configured\", 0)} |')
+                  print(f'| **Output** | Clickable links | {m.get(\"output\", {}).get(\"total_clickable_links\", 0)} |')
+                  print(f'| | Market Snapshot | {m.get(\"output\", {}).get(\"snapshot_status\", \"N/A\")} |')
+                  print(f'| | Result | {\"✅ PASSED\" if m.get(\"quality_check_passed\", False) else \"⚠️ FAILED/WARNINGS\"} |')
+          except Exception as e:
+              print(f'Error parsing metrics: {{e}}')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Error: Metrics file not found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Run Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-brief-run-${{ github.run_id }}
+          path: data/logs/
+          retention-days: 7

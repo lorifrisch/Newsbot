@@ -83,7 +83,7 @@ def main():
             """,
             "archive_url": "https://example.com/archive",
             "preferences_url": "https://example.com/preferences",
-            "footer_note": "Sent by Lori Invest automated news service.",
+            "footer_note": "Sent by Smart Invest automated news service.",
             "unsubscribe_line": "If you wish to stop receiving these, <a href='#'>click here to unsubscribe</a>."
         }
         

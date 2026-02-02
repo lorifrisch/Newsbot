@@ -1,0 +1,74 @@
+name: Weekly Recap
+
+on:
+  schedule:
+    - cron: "0 17 * * 0"  # 17:00 UTC Sunday (~18:00 Rome winter, 19:00 summer)
+  workflow_dispatch: {}
+
+concurrency:
+  group: weekly-recap
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run weekly recap
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python run_weekly.py
+
+      - name: Create Execution Summary
+        if: always()
+        run: |
+          LATEST_DIR=$(ls -td data/logs/*/ 2>/dev/null | head -1)
+          if [ -n "$LATEST_DIR" ] && [ -f "${LATEST_DIR}3_composed_brief.json" ]; then
+            echo "### 📊 Weekly Recap Summary" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          try:
+              with open('${LATEST_DIR}3_composed_brief.json') as f:
+                  b = json.load(f)
+                  print(f'**Theme of the Week:** {b.get(\"theme_of_week\", \"N/A\")[:200]}...')
+                  print(f'\n**Key Developments:** {len(b.get(\"top_developments\", []))}')
+                  print(f'\n**Outlook:** {b.get(\"next_week_outlook\", \"N/A\")[:200]}...')
+          except Exception as e:
+              print(f'Error parsing summary: {e}')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ No recap data found." >> $GITHUB_STEP_SUMMARY
+            echo "This usually means no fact cards were found in the database for the past 7 days." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Run Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-recap-run-${{ github.run_id }}
+          path: data/logs/
+          retention-days: 7
