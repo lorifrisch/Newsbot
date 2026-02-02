@@ -10,16 +10,18 @@ coverage:
 
 watchlist:
   tickers:
-    - AAPL
-    - MSFT
-    - GOOGL
-    - AMZN
-    - TSLA
-    - NVDA
-    - META
-    - SPY
-    - QQQ
-    - BTC
+    - UUUU
+    - CCJ
+    - USAR
+    - AVGO
+    - LEU
+    - CVX
+    - XOM
+    - GCOM
+    - IREN
+    - SOFI
+    - ANET
+    - SNOW
 
 # Model configuration with token caps
 models:
