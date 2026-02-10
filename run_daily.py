@@ -126,11 +126,18 @@ def run_daily_workflow(dry_run: bool = False):
         metrics.clustering.clusters_after_dedup = len(clusters)
         logger.info(f"✓ Retrieved {len(clusters)} news clusters")
         
+        # BUGFIX: Prioritize watchlist clusters for extraction
+        # Move watchlist clusters to the front so they're included in the extraction limit
+        watchlist_clusters = [c for c in clusters if c.primary_item.region == "watchlist"]
+        non_watchlist_clusters = [c for c in clusters if c.primary_item.region != "watchlist"]
+        prioritized_clusters = watchlist_clusters + non_watchlist_clusters
+        logger.info(f"Prioritized {len(watchlist_clusters)} watchlist clusters for extraction (total: {len(clusters)} clusters)")
+        
         # =============================
         # PHASE 2: EXTRACTION
         # =============================
         logger.info("PHASE 2: Extracting structured fact cards...")
-        fact_cards = extractor.extract_fact_cards(clusters)
+        fact_cards = extractor.extract_fact_cards(prioritized_clusters)
         save_artifact(run_dir, "02_extracted_fact_cards", [card.model_dump() for card in fact_cards])
         
         if not fact_cards:
@@ -216,11 +223,11 @@ def run_daily_workflow(dry_run: bool = False):
         covered_in_output = set()
         for ticker in watchlist_expected:
             ticker_upper = ticker.upper()
-            # Look for ticker in bold or just the ticker followed by a colon
-            if f"**{ticker_upper}**" in watchlist_html.upper() or f"{ticker_upper}:" in watchlist_html.upper():
+            # Look for ticker in the HTML (handles both markdown ** and HTML <strong> tags)
+            if ticker_upper in watchlist_html.upper():
                 # Check if it has news or just "No major updates"
                 idx = watchlist_html.upper().find(ticker_upper)
-                snippet = watchlist_html.upper()[idx:idx+120]
+                snippet = watchlist_html.upper()[idx:idx+250]  # Increased to 250 to handle HTML tags
                 if "NO MAJOR UPDATES" not in snippet:
                     covered_in_output.add(ticker_upper)
         

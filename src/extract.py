@@ -103,6 +103,7 @@ class FactCardExtractor:
                         {"role": "user", "content": prompt}
                     ],
                     "max_output_tokens": getattr(self.settings.models, 'extraction_max_tokens', 3000),
+                    "temperature": 0.3,  # Higher temperature for less conservative extraction
                     "purpose": "extraction"
                 }
                 
@@ -148,6 +149,26 @@ class FactCardExtractor:
                         continue
 
                 logger.info(f"Successfully extracted {len(fact_cards)} valid fact cards (attempt {attempt + 1})")
+                
+                # FALLBACK: Create simple fact cards for unextracted watchlist clusters
+                extracted_cluster_ids = {card.story_id for card in fact_cards}
+                watchlist_clusters_in_input = [c for c in cluster_data if c.get('is_watchlist', False)]
+                logger.info(f"Fallback check: {len(watchlist_clusters_in_input)} watchlist clusters in input, {len(extracted_cluster_ids)} extracted cluster IDs")
+                
+                watchlist_clusters_unextracted = [
+                    cluster for cluster in cluster_data 
+                    if cluster['cluster_id'] not in extracted_cluster_ids 
+                    and cluster.get('is_watchlist', False)
+                ]
+                
+                if watchlist_clusters_unextracted:
+                    logger.info(f"Creating fallback fact cards for {len(watchlist_clusters_unextracted)} unextracted watchlist clusters")
+                    fallback_cards = self._create_fallback_cards(watchlist_clusters_unextracted)
+                    fact_cards.extend(fallback_cards)
+                    logger.info(f"Added {len(fallback_cards)} fallback fact cards. Total: {len(fact_cards)}")
+                else:
+                    logger.info("No unextracted watchlist clusters found - all watchlist items successfully extracted")
+                
                 return fact_cards
 
             except json.JSONDecodeError:
@@ -164,6 +185,84 @@ class FactCardExtractor:
         logger.error(f"Extraction failed after {max_retries} attempts. Last error: {last_error}")
         return []
 
+    def _create_fallback_cards(self, cluster_data: List[Dict[str, Any]]) -> List[FactCard]:
+        """
+        Creates simple fact cards from cluster data for watchlist items that weren't extracted.
+        Uses basic heuristics to extract key information from titles and snippets.
+        """
+        fallback_cards = []
+        
+        for cluster in cluster_data:
+            try:
+                title = cluster['primary_title']
+                snippet = cluster['primary_snippet']
+                
+                # Extract ticker from title or snippet
+                import re
+                ticker_pattern = r'\b([A-Z]{2,5})\b'
+                tickers_found = re.findall(ticker_pattern, title + ' ' + snippet)
+                # Filter to known watchlist tickers
+                watchlist_tickers = ['UUUU', 'CCJ', 'USAR', 'AVGO', 'LEU', 'CVX', 'XOM', 'GCOM', 'IREN', 'SOFI', 'ANET', 'SNOW']
+                tickers = [t for t in tickers_found if t in watchlist_tickers][:2]  # Max 2 tickers
+                
+                # Extract company name from title
+                entity = title.split('(')[0].strip() if '(' in title else title.split(':')[0].strip()
+                entity = entity[:50]  # Limit length
+                
+                # Create simple trend from title or first part of snippet
+                trend = snippet.split('.')[0] if '.' in snippet else snippet[:100]
+                trend = trend.strip()
+                
+                # Try to extract data point (numbers, percentages, prices)
+                data_point = None
+                data_patterns = [
+                    r'\$[\d,]+(?:\.\d+)?[BMK]?',  # Dollar amounts
+                    r'[-+]?\d+(?:\.\d+)?%',  # Percentages
+                    r'\d+(?:\.\d+)?[BMK]?\s*(?:billion|million|thousand)',  # Large numbers
+                ]
+                for pattern in data_patterns:
+                    match = re.search(pattern, snippet, re.IGNORECASE)
+                    if match:
+                        data_point = match.group(0)
+                        break
+                
+                # Create why_it_matters based on keywords
+                if 'upgrade' in snippet.lower() or 'outperform' in snippet.lower():
+                    why_it_matters = "Analyst upgrade may boost investor confidence and stock performance."
+                elif 'downgrade' in snippet.lower() or 'underperform' in snippet.lower():
+                    why_it_matters = "Analyst downgrade could pressure stock price and investor sentiment."
+                elif 'earnings' in snippet.lower() or 'revenue' in snippet.lower():
+                    why_it_matters = "Earnings results impact valuation expectations and investor decisions."
+                elif 'dividend' in snippet.lower():
+                    why_it_matters = "Dividend changes affect income investor appetite and stock valuation."
+                elif any(word in snippet.lower() for word in ['surge', 'jump', 'rally', 'gain']):
+                    why_it_matters = "Positive price action may signal improving investor sentiment."
+                elif any(word in snippet.lower() for word in ['drop', 'fall', 'decline', 'tumble']):
+                    why_it_matters = "Price decline could reflect investor concerns or market headwinds."
+                else:
+                    why_it_matters = "Market development relevant to watchlist stock performance."
+                
+                # Create fact card
+                fact_card = FactCard(
+                    story_id=cluster['cluster_id'],
+                    entity=entity,
+                    trend=trend,
+                    data_point=data_point,
+                    why_it_matters=why_it_matters[:200],  # Enforce max length
+                    confidence=0.75,  # Lower confidence for auto-generated cards
+                    tickers=tickers if tickers else [],
+                    sources=cluster['sources'],
+                    urls=cluster['urls']
+                )
+                
+                fallback_cards.append(fact_card)
+                
+            except Exception as e:
+                logger.warning(f"Failed to create fallback card for cluster {cluster.get('cluster_id', 'unknown')}: {e}")
+                continue
+        
+        return fallback_cards
+    
     def _format_clusters_for_extraction(self, clusters: List[StoryCluster]) -> List[Dict[str, Any]]:
         """
         Formats clusters into structured data for the extraction prompt.
@@ -173,13 +272,17 @@ class FactCardExtractor:
             sources = [cluster.primary_item.source] + [s.source for s in cluster.supporting_items]
             urls = [cluster.primary_item.url] + [s.url for s in cluster.supporting_items]
             
+            # Check if this is a watchlist cluster
+            is_watchlist = cluster.primary_item.region == "watchlist"
+            
             formatted.append({
                 "cluster_id": cluster.cluster_id,
                 "primary_title": cluster.primary_item.title,
                 "primary_snippet": cluster.primary_item.snippet,
                 "sources": list(set(sources)),  # Remove duplicates
                 "urls": list(set(urls)),  # Remove duplicates
-                "supporting_count": len(cluster.supporting_items)
+                "supporting_count": len(cluster.supporting_items),
+                "is_watchlist": is_watchlist  # Flag watchlist items
             })
         return formatted
 
@@ -193,14 +296,16 @@ CRITICAL RULES:
 4. Include relevant stock tickers when mentioned (use standard format like AAPL, TSLA)
 5. Set confidence based on source quality and data specificity
 6. Each fact card must have at least one source and URL
-7. Only extract facts with clear market relevance
+7. Extract facts from ALL clusters, especially those tagged as 'watchlist' items
+8. For watchlist stocks: extract even minor updates (price changes, analyst ratings, volume spikes)
 
 Output valid JSON only."""
 
     def _build_extraction_prompt(self, cluster_data: List[Dict[str, Any]]) -> str:
         clusters_text = ""
         for i, cluster in enumerate(cluster_data, 1):
-            clusters_text += f"\nCluster {i} (ID: {cluster['cluster_id']}):\n"
+            watchlist_tag = " [WATCHLIST - MUST EXTRACT]" if cluster.get('is_watchlist', False) else ""
+            clusters_text += f"\nCluster {i}{watchlist_tag} (ID: {cluster['cluster_id']}):\n"
             clusters_text += f"Title: {cluster['primary_title']}\n"
             clusters_text += f"Content: {cluster['primary_snippet']}\n"
             clusters_text += f"Sources: {', '.join(cluster['sources'])}\n"
@@ -229,4 +334,4 @@ Return JSON with this exact structure:
   ]
 }}
 
-Extract only facts with clear market relevance. Do not create fact cards for vague or speculative content."""
+CRITICAL: Extract at least one fact card from EVERY cluster marked with [WATCHLIST - MUST EXTRACT]. These are priority watchlist stocks and MUST NOT be skipped, even if the news seems minor. For other clusters, use your judgment to extract only market-relevant facts."""

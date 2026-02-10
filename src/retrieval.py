@@ -117,18 +117,30 @@ Return ONLY the JSON array. Do not include markdown formatting or preamble."""
         """
         Defines the multi-query daily retrieval plan.
         Updated to request more items per query to ensure regional coverage.
+        BUGFIX: Split watchlist into batched queries (3 tickers per query) for better coverage.
         """
-        tickers = ", ".join(self.settings.watchlist_tickers) if self.settings.watchlist_tickers else "major tech stocks"
         items_per_query = self.daily_config.max_candidates_per_query
         
-        return {
+        queries = {
             "us_macro": f"Top {items_per_query} US macro and policy news today (Fed, inflation, employment, Treasury, fiscal policy). Include source URLs. Region tag: 'us'",
             "us_equities": f"Top {items_per_query} US equity market movers, sector trends, and major earnings today. Include source URLs. Region tag: 'us'",
             "eu_market": f"Top {items_per_query} Eurozone macro news, ECB policy, and major European stock market movers today. Include source URLs. Region tag: 'eu'",
             "china_market": f"Top {items_per_query} news on China macro, tech regulation, property market, and PBOC policy today. Include source URLs. Region tag: 'china'",
-            "global_market": f"Top {items_per_query} market-moving news from Japan (Yen, Nikkei, BOJ), SE Asia (TSMC, semiconductors), and Latin America (EM trends). Include source URLs. Region tag: 'global'",
-            "watchlist": f"Latest {items_per_query} price-moving news for these tickers: {tickers}. Include source URLs for each story. Region tag: 'watchlist'"
+            "global_market": f"Top {items_per_query} market-moving news from Japan (Yen, Nikkei, BOJ), SE Asia (TSMC, semiconductors), and Latin America (EM trends). Include source URLs. Region tag: 'global'"
         }
+        
+        # BUGFIX: Batch watchlist tickers into groups of 3 for better coverage
+        # Each query requests 2-3 items per ticker to ensure every ticker gets news
+        watchlist_tickers = self.settings.watchlist_tickers if self.settings.watchlist_tickers else []
+        batch_size = 3
+        
+        for i in range(0, len(watchlist_tickers), batch_size):
+            batch = watchlist_tickers[i:i+batch_size]
+            batch_name = f"watchlist_batch_{(i//batch_size) + 1}"
+            tickers_str = ", ".join(batch)
+            queries[batch_name] = f"Latest 2-3 news items for EACH of these tickers: {tickers_str}. Include source URLs for each story. Region tag: 'watchlist'"
+        
+        return queries
     
     def _generate_fallback_watchlist_query(self, uncovered_tickers: List[str]) -> str:
         """Generate a targeted query for uncovered watchlist tickers."""

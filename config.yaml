@@ -40,7 +40,7 @@ daily:
   max_candidates: 50        # Total candidates to retrieve
   max_candidates_per_query: 8  # Target per query
   snippet_words: 80         # Truncate snippets to this word count
-  max_clusters: 14          # Max fact cards to extract
+  max_clusters: 24          # Max fact cards to extract (increased to accommodate watchlist)
   # Regional minimums - ensures enough coverage from each region
   min_us_items: 25          # Minimum US items to retrieve
   min_eu_items: 8           # Minimum EU items

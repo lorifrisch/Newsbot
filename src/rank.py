@@ -245,6 +245,11 @@ class FactCardRanker:
             if id(card) in used_card_ids:
                 continue
             
+            # BUGFIX: Exclude watchlist items from Top 5 - they have their own section
+            card_tickers = [t.upper() for t in card.tickers]
+            if any(t in self.watchlist for t in card_tickers):
+                continue
+            
             entity_norm = card.entity.lower().strip()
             if entity_norm in used_entities:
                 continue

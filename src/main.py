@@ -49,8 +49,15 @@ def main():
                 logger.warning("No news fetched. Skipping brief.")
                 return
 
+            # BUGFIX: Prioritize watchlist clusters for extraction
+            # Move watchlist clusters to the front so they're included in the first max_clusters
+            watchlist_clusters = [c for c in clusters if c.primary_item.region == "watchlist"]
+            non_watchlist_clusters = [c for c in clusters if c.primary_item.region != "watchlist"]
+            prioritized_clusters = watchlist_clusters + non_watchlist_clusters
+            logger.info(f"Prioritized {len(watchlist_clusters)} watchlist clusters for extraction")
+
             # 3.2 Extract Fact Cards
-            fact_cards = extractor.extract_fact_cards(clusters)
+            fact_cards = extractor.extract_fact_cards(prioritized_clusters)
             save_artifact(run_dir, "extracted_fact_cards", [card.model_dump() for card in fact_cards])
             
             # 3.3 Rank & Bucketize
